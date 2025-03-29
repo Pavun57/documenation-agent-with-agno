@@ -51,18 +51,24 @@ CREATE EXTENSION vector;
 
 ## Setup
 
-1. Create a virtual environment:
+1. Clone the repository:
+```bash
+git clone https://github.com/Pavun57/documenation-agent-with-agno.git
+cd documenation-agent-with-agno
+```
+
+2. Create a virtual environment:
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
-2. Install required packages:
+3. Install required packages:
 ```bash
 pip install -U openai duckduckgo-search yfinance sqlalchemy 'fastapi[standard]' agno
 ```
 
-3. Set up environment variables:
+4. Set up environment variables:
 ```bash
 # On Windows
 setx OPENAI_API_KEY sk-***
@@ -71,18 +77,18 @@ setx OPENAI_API_KEY sk-***
 export OPENAI_API_KEY=sk-***
 ```
 
-4. Install dependencies:
+5. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-5. Configure database connection:
+6. Configure database connection:
 The system expects a PostgreSQL database with the following connection string:
 ```
 postgresql+psycopg2://ai:ai@localhost:5532/ai
 ```
 
-6. Agno Setup:
+7. Agno Setup:
 - Create an account at [Agno](https://agno.ai)
 - Log in to access the full Agno UI features
 - Run the Agno CLI setup:
