@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  db:
+    image: ankane/pgvector:latest
+    environment:
+      POSTGRES_USER: ai
+      POSTGRES_PASSWORD: ai
+      POSTGRES_DB: ai
+    ports:
+      - "5532:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
