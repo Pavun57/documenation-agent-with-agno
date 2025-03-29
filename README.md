@@ -57,16 +57,39 @@ python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
-2. Install dependencies:
+2. Install required packages:
+```bash
+pip install -U openai duckduckgo-search yfinance sqlalchemy 'fastapi[standard]' agno
+```
+
+3. Set up environment variables:
+```bash
+# On Windows
+setx OPENAI_API_KEY sk-***
+
+# On Linux/Mac
+export OPENAI_API_KEY=sk-***
+```
+
+4. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Configure database connection:
+5. Configure database connection:
 The system expects a PostgreSQL database with the following connection string:
 ```
 postgresql+psycopg2://ai:ai@localhost:5532/ai
 ```
+
+6. Agno Setup:
+- Create an account at [Agno](https://agno.ai)
+- Log in to access the full Agno UI features
+- Run the Agno CLI setup:
+```bash
+ag setup
+```
+- Follow the Agno documentation for additional configuration if needed
 
 ## Document Storage
 
@@ -135,4 +158,4 @@ Once the playground is running, you can access:
 - The system processes PDFs in batches to manage system resources
 - Each PDF is chunked with a size of 1000 characters and 200 character overlap
 - Document metadata includes source URLs, page numbers, and chunk information
-- Agent sessions are persisted in `tmp/agents.db` 
+- Agent sessions are persisted in `tmp/agents.db`
