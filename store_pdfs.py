@@ -16,95 +16,103 @@ logger = logging.getLogger(__name__)
 # Database connection URL
 db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
 
-def process_pdf_batch(pdf_batch: List[Dict], vector_db: PgVector, batch_num: int) -> bool:
-    """Process a batch of PDFs and store them in the database."""
+def process_pdf_batch(pdf_batch: List[Dict], vector_db: PgVector, batch_num: int) -> List[str]:
+    """Process a batch of PDFs and store them in the database.
+    Returns a list of failed PDF URLs."""
+    failed_pdfs = []
     try:
         logger.info(f"Processing batch {batch_num} with {len(pdf_batch)} PDFs...")
         
-        # Create knowledge base for this batch
-        knowledge_base = PDFUrlKnowledgeBase(
-            urls=[pdf['url'] for pdf in pdf_batch],
-            chunk_size=1000,
-            chunk_overlap=200,
-            metadata_keys=["source_url", "page", "chunk", "chunk_size", "doc_name", "doc_order"],
-            vector_db=vector_db,
-        )
+        # Process each PDF individually
+        for pdf in pdf_batch:
+            try:
+                # Create knowledge base for this PDF
+                knowledge_base = PDFUrlKnowledgeBase(
+                    urls=[pdf['url']],
+                    chunk_size=1000,
+                    chunk_overlap=200,
+                    metadata_keys=["source_url", "page", "chunk", "chunk_size", "doc_name", "doc_order"],
+                    vector_db=vector_db,
+                )
 
-        # Load PDFs into DB
-        knowledge_base.load(upsert=True)
-        
-        # Update metadata for each PDF in the batch
-        with engine.connect() as conn:
-            for pdf in pdf_batch:
-                # Get the number of chunks for this PDF
-                chunk_count = conn.execute(
-                    text("SELECT COUNT(*) FROM documents WHERE meta_data->>'source_url' = :url"),
-                    {"url": pdf['url']}
-                ).scalar()
+                # Load PDF into DB
+                knowledge_base.load(upsert=True)
                 
-                if chunk_count:
-                    # Update metadata for all chunks of this PDF
-                    conn.execute(
-                        text("""
-                            UPDATE documents 
-                            SET meta_data = jsonb_set(
-                                jsonb_set(
-                                    meta_data,
-                                    '{doc_name}',
-                                    cast(:doc_name as jsonb)
-                                ),
-                                '{doc_order}',
-                                cast(:doc_order as jsonb)
-                            )
-                            WHERE meta_data->>'source_url' = :url
-                        """),
-                        {
-                            "url": pdf['url'],
-                            "doc_name": json.dumps(pdf['name']),
-                            "doc_order": json.dumps(pdf['order'])
-                        }
-                    )
-                    conn.commit()
-                    logger.info(f"Updated metadata for {pdf['name']} with {chunk_count} chunks")
-                else:
-                    # If no chunks found, try to update by URL pattern
-                    conn.execute(
-                        text("""
-                            UPDATE documents 
-                            SET meta_data = jsonb_set(
-                                jsonb_set(
+                # Update metadata for this PDF
+                with engine.connect() as conn:
+                    # Get the number of chunks for this PDF
+                    chunk_count = conn.execute(
+                        text("SELECT COUNT(*) FROM documents WHERE meta_data->>'source_url' = :url"),
+                        {"url": pdf['url']}
+                    ).scalar()
+                    
+                    if chunk_count:
+                        # Update metadata for all chunks of this PDF
+                        conn.execute(
+                            text("""
+                                UPDATE documents 
+                                SET meta_data = jsonb_set(
                                     jsonb_set(
                                         meta_data,
-                                        '{source_url}',
-                                        cast(:url as jsonb)
+                                        '{doc_name}',
+                                        cast(:doc_name as jsonb)
                                     ),
-                                    '{doc_name}',
-                                    cast(:doc_name as jsonb)
-                                ),
-                                '{doc_order}',
-                                cast(:doc_order as jsonb)
-                            )
-                            WHERE id IN (
-                                SELECT id 
-                                FROM documents 
-                                WHERE meta_data->>'source_url' IS NULL 
-                                ORDER BY id 
-                                LIMIT 5
-                            )
-                        """),
-                        {
-                            "url": json.dumps(pdf['url']),
-                            "doc_name": json.dumps(pdf['name']),
-                            "doc_order": json.dumps(pdf['order'])
-                        }
-                    )
-                    conn.commit()
-                    logger.info(f"Updated metadata for {pdf['name']} using URL pattern")
+                                    '{doc_order}',
+                                    cast(:doc_order as jsonb)
+                                )
+                                WHERE meta_data->>'source_url' = :url
+                            """),
+                            {
+                                "url": pdf['url'],
+                                "doc_name": json.dumps(pdf['name']),
+                                "doc_order": json.dumps(pdf['order'])
+                            }
+                        )
+                        conn.commit()
+                        logger.info(f"Updated metadata for {pdf['name']} with {chunk_count} chunks")
+                    else:
+                        # If no chunks found, try to update by URL pattern
+                        conn.execute(
+                            text("""
+                                UPDATE documents 
+                                SET meta_data = jsonb_set(
+                                    jsonb_set(
+                                        jsonb_set(
+                                            meta_data,
+                                            '{source_url}',
+                                            cast(:url as jsonb)
+                                        ),
+                                        '{doc_name}',
+                                        cast(:doc_name as jsonb)
+                                    ),
+                                    '{doc_order}',
+                                    cast(:doc_order as jsonb)
+                                )
+                                WHERE id IN (
+                                    SELECT id 
+                                    FROM documents 
+                                    WHERE meta_data->>'source_url' IS NULL 
+                                    ORDER BY id 
+                                    LIMIT 5
+                                )
+                            """),
+                            {
+                                "url": json.dumps(pdf['url']),
+                                "doc_name": json.dumps(pdf['name']),
+                                "doc_order": json.dumps(pdf['order'])
+                            }
+                        )
+                        conn.commit()
+                        logger.info(f"Updated metadata for {pdf['name']} using URL pattern")
+            except Exception as e:
+                logger.error(f"Error processing PDF {pdf['name']}: {str(e)}")
+                failed_pdfs.append(pdf['url'])
+                continue
         
-        return True
+        return failed_pdfs
     except Exception as e:
-        logger.error(f"Error processing batch {batch_num}: {str(e)}")
-        return False
+        logger.error(f"Error in batch {batch_num}: {str(e)}")
+        return [pdf['url'] for pdf in pdf_batch]
 
 def main():
     try:
@@ -159,10 +167,9 @@ def main():
             
             logger.info(f"Processing batch {batch_num + 1}/{num_batches} ({len(current_batch)} PDFs)")
             
-            if process_pdf_batch(current_batch, vector_db, batch_num + 1):
-                success_count += len(current_batch)
-            else:
-                failed_pdfs.extend([pdf['url'] for pdf in current_batch])
+            batch_failed = process_pdf_batch(current_batch, vector_db, batch_num + 1)
+            failed_pdfs.extend(batch_failed)
+            success_count += len(current_batch) - len(batch_failed)
             
             # Add a small delay between batches to prevent overwhelming the system
             if batch_num < num_batches - 1:

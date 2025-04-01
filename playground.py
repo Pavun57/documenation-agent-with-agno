@@ -48,7 +48,7 @@ else:
 # ✅ Web Agent
 web_agent = Agent(
     name="Web Agent",
-    model=OpenAIChat(id="gpt-4o"),
+    model=OpenAIChat(id="gpt-4o-mini"),
     tools=[DuckDuckGoTools()],
     instructions=["Always include sources"],
     storage=SqliteAgentStorage(table_name="web_agent", db_file=agent_storage),
