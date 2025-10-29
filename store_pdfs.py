@@ -29,12 +29,9 @@ def process_pdf_batch(pdf_batch: List[Dict], vector_db: PgVector, batch_num: int
                 # Create knowledge base for this PDF
                 knowledge_base = PDFUrlKnowledgeBase(
                     urls=[pdf['url']],
-                    chunk_size=1000,
-                    chunk_overlap=200,
-                    metadata_keys=["source_url", "page", "chunk", "chunk_size", "doc_name", "doc_order"],
                     vector_db=vector_db,
                 )
-
+                
                 # Load PDF into DB
                 knowledge_base.load(upsert=True)
                 
@@ -117,7 +114,7 @@ def process_pdf_batch(pdf_batch: List[Dict], vector_db: PgVector, batch_num: int
 def main():
     try:
         # Read PDF URLs from JSON file
-        json_path = 'unique_document_urls.json'
+        json_path = 'test.json'
         if not os.path.exists(json_path):
             json_path = os.path.join('backend', 'unique_document_urls.json')
             if not os.path.exists(json_path):
@@ -139,11 +136,15 @@ def main():
         global engine
         engine = create_engine(db_url)
 
-        # Clear existing documents
+        # Clear existing documents (if table exists)
         with engine.connect() as conn:
-            conn.execute(text("DELETE FROM documents"))
-            conn.commit()
-            logger.info("Cleared existing documents from database")
+            try:
+                conn.execute(text("DELETE FROM documents"))
+                conn.commit()
+                logger.info("Cleared existing documents from database")
+            except Exception as e:
+                logger.info("Documents table doesn't exist yet, will be created automatically")
+                conn.rollback()
 
         # Create vector DB instance
         vector_db = PgVector(

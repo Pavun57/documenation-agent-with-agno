@@ -79,7 +79,7 @@ export OPENAI_API_KEY=sk-***
 
 5. Install dependencies:
 ```bash
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 6. Configure database connection:
@@ -111,7 +111,7 @@ ag setup
 
 2. Run the PDF storage script to process and store documents:
 ```bash
-python store_pdfs.py
+python3 store_pdfs.py
 ```
 
 This will:
@@ -124,7 +124,7 @@ This will:
 
 Start the interactive playground interface:
 ```bash
-python playground.py
+python3 playground.py
 ```
 
 The playground provides three specialized agents:
