@@ -156,8 +156,8 @@ The playground provides three specialized agents:
 ## API Documentation
 
 Once the playground is running, you can access:
-- Interactive API documentation at `http://localhost:8000/docs`
-- Alternative documentation at `http://localhost:8000/redoc`
+- Interactive API documentation at `http://localhost:7777/docs`
+- Alternative documentation at `http://localhost:7777/redoc`
 
 ## Notes
 
